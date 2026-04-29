@@ -1,4 +1,4 @@
-# YTPilot
+# YTPilot 📺
 
 🚀 **YTPilot** is a polished web interface for `yt-dlp` and FFmpeg. Paste a YouTube link, inspect available streams, choose your output settings, and process downloads through a clean Next.js + FastAPI app.
 

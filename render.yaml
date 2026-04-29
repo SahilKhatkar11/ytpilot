@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: ytpilot-backend
+    env: docker
+    rootDir: backend
+    plan: free
+    envVars:
+      - key: CORS_ORIGIN
+        value: https://your-frontend-domain.example
+      - key: STORAGE_ROOT
+        value: /tmp/ytpilot-storage
+      - key: TEMP_ROOT
+        value: /tmp/ytpilot-storage/tmp
+      - key: OUTPUT_ROOT
+        value: /tmp/ytpilot-storage/output
+      - key: MAX_PARALLEL_JOBS
+        value: 1
+
+  - type: web
+    name: ytpilot-frontend
+    env: node
+    rootDir: frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start -- -p $PORT
+    envVars:
+      - key: NEXT_PUBLIC_API_BASE
+        value: https://your-backend-domain.example/api/v1

@@ -1,0 +1,40 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Python
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.py[cod]
+.pytest_cache/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local media and temporary processing output
+backend/storage/cookies.txt
+backend/storage/cookies_uploads/
+backend/storage/tmp/
+backend/storage/output/
+backend/storage/**/*.part
+backend/storage/**/*.ytdl
+backend/storage/**/*.temp
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

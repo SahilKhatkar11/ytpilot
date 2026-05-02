@@ -1,9 +1,12 @@
 import type { JobRecord, MediaItem, QueuePayload } from "@/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
+const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE?.trim();
+const API_BASE = (configuredApiBase || "http://localhost:8000/api/v1").replace(/\/$/, "");
 const REQUEST_TIMEOUT_MS = 45000;
 const RENDER_WAKE_MESSAGE =
   "The backend may be waking up on Render. Free Render services sleep after being idle, so please wait 30-60 seconds and try again.";
+const WRONG_API_HOST_MESSAGE =
+  "The frontend is not pointing to the FastAPI backend. Set NEXT_PUBLIC_API_BASE to your Render backend URL ending in /api/v1, for example https://ytpilot-backend.onrender.com/api/v1.";
 
 function isLikelyOfflineError(error: unknown) {
   return error instanceof TypeError || (error instanceof Error && /failed to fetch|networkerror|load failed/i.test(error.message));
@@ -38,6 +41,9 @@ async function parseJson<T>(response: Response): Promise<T> {
       detail = undefined;
     }
     const message = detail || text || "Request failed";
+    if (response.status === 405 && /<html/i.test(message)) {
+      throw new Error(WRONG_API_HOST_MESSAGE);
+    }
     if ([502, 503, 504].includes(response.status) && /render|service unavailable|bad gateway|gateway timeout|timeout|upstream/i.test(message)) {
       throw new Error(`${RENDER_WAKE_MESSAGE} Details: ${message}`);
     }

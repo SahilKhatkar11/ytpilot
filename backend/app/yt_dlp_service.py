@@ -19,7 +19,8 @@ from .cookie_store import CookieStore
 from .models import EditableMetadata, FormatOption, MediaItem, MediaKind, SubtitleOption
 
 logger = logging.getLogger(__name__)
-ANALYZE_REVISION = "ignore-config-metadata-2026-05-02-09"
+ANALYZE_REVISION = "youtube-client-fallback-2026-05-02-10"
+YOUTUBE_PUBLIC_CLIENT_ARGS = ["--extractor-args", "youtube:player_client=android,web"]
 
 
 class YtDlpService:
@@ -37,20 +38,40 @@ class YtDlpService:
         if cached:
             logger.info("analyze cache hit url=%s revision=%s", normalized_url, ANALYZE_REVISION)
             return cached
-        try:
-            payload = await self._run_json(self._analyze_command(normalized_url, cookies_token), timeout_seconds=120)
-            item = self._map_media_item(payload, source_url=normalized_url)
-        except RuntimeError as exc:
-            if "timed out" not in str(exc):
-                raise
-            logger.warning("full analyze timed out, trying flat metadata fallback url=%s", normalized_url)
+
+        errors: list[str] = []
+        item: MediaItem | None = None
+        for attempt in self._analyze_attempts(cookies_token):
             try:
-                payload = await self._run_json(self._flat_analyze_command(normalized_url, cookies_token), timeout_seconds=45)
-                item = self._map_flat_media_item(payload, source_url=normalized_url)
-            except RuntimeError as fallback_exc:
-                raise RuntimeError(
-                    "yt-dlp could not fetch metadata or streams. YouTube may require an exported cookies.txt file for this URL."
-                ) from fallback_exc
+                payload = await self._run_json(
+                    self._analyze_command(normalized_url, attempt["cookies_token"], attempt["client_args"]),
+                    timeout_seconds=120,
+                )
+                item = self._map_media_item(payload, source_url=normalized_url)
+                break
+            except RuntimeError as exc:
+                error_text = str(exc)
+                errors.append(error_text)
+                if "timed out" in error_text:
+                    logger.warning(
+                        "full analyze timed out, trying flat metadata fallback url=%s attempt=%s",
+                        normalized_url,
+                        attempt["label"],
+                    )
+                    try:
+                        payload = await self._run_json(
+                            self._flat_analyze_command(normalized_url, attempt["cookies_token"], attempt["client_args"]),
+                            timeout_seconds=45,
+                        )
+                        item = self._map_flat_media_item(payload, source_url=normalized_url)
+                        break
+                    except RuntimeError as fallback_exc:
+                        errors.append(str(fallback_exc))
+                if not self._should_try_next_analyze_attempt(error_text):
+                    raise
+
+        if item is None:
+            raise RuntimeError(self._analyze_failure_message(errors))
         self._analysis_cache[cache_key] = item
         return item
 
@@ -107,18 +128,27 @@ class YtDlpService:
     def _base_command(self) -> list[str]:
         return [sys.executable, "-m", "yt_dlp"]
 
-    def _metadata_command(self, cookies_token: str | None = None) -> list[str]:
+    def _analyze_attempts(self, cookies_token: str | None = None) -> list[dict[str, Any]]:
+        attempts: list[dict[str, Any]] = [{"label": "default", "cookies_token": cookies_token, "client_args": []}]
+        if cookies_token:
+            attempts.append({"label": "public-client-fallback", "cookies_token": None, "client_args": YOUTUBE_PUBLIC_CLIENT_ARGS})
+        else:
+            attempts.append({"label": "public-client-fallback", "cookies_token": None, "client_args": YOUTUBE_PUBLIC_CLIENT_ARGS})
+        return attempts
+
+    def _metadata_command(self, cookies_token: str | None = None, client_args: list[str] | None = None) -> list[str]:
         return [
             self.binary,
             "--ignore-config",
             "--dump-single-json",
             "--no-warnings",
             "--skip-download",
+            *(client_args or []),
             *self._auth_args(cookies_token),
         ]
 
-    def _analyze_command(self, url: str, cookies_token: str | None = None) -> list[str]:
-        command = self._metadata_command(cookies_token)
+    def _analyze_command(self, url: str, cookies_token: str | None = None, client_args: list[str] | None = None) -> list[str]:
+        command = self._metadata_command(cookies_token, client_args)
         if self._is_playlist_url(url):
             command.extend(["--flat-playlist", "--playlist-end", str(self.playlist_limit)])
         else:
@@ -126,12 +156,13 @@ class YtDlpService:
         command.append(url)
         return command
 
-    def _flat_analyze_command(self, url: str, cookies_token: str | None = None) -> list[str]:
+    def _flat_analyze_command(self, url: str, cookies_token: str | None = None, client_args: list[str] | None = None) -> list[str]:
         command = [
             self.binary,
             "--ignore-config",
             "--dump-single-json",
             "--no-warnings",
+            *(client_args or []),
             *self._auth_args(cookies_token),
             "--skip-download",
             "--flat-playlist",
@@ -189,6 +220,32 @@ class YtDlpService:
     def _is_youtube_auth_error(self, error_text: str) -> bool:
         normalized = error_text.lower()
         return "sign in to confirm" in normalized or "not a bot" in normalized or "cookies for the authentication" in normalized
+
+    def _should_try_next_analyze_attempt(self, error_text: str) -> bool:
+        normalized = error_text.lower()
+        return (
+            self._is_youtube_auth_error(error_text)
+            or "youtube rejected the uploaded cookies" in normalized
+            or "requested format is not available" in normalized
+            or "timed out" in normalized
+        )
+
+    def _analyze_failure_message(self, errors: list[str]) -> str:
+        joined = "\n".join(errors).lower()
+        if "youtube rejected the uploaded cookies" in joined:
+            return (
+                "YouTube rejected the uploaded cookies. On cloud hosts like Render, cookies that work locally can still be rejected "
+                "because YouTube sees a different server IP. Export a fresh Netscape cookies.txt from the same logged-in browser profile, "
+                "or retry later if YouTube is temporarily challenging the Render IP."
+            )
+        if self._is_youtube_auth_error(joined):
+            return (
+                "YouTube is blocking this request from the hosting IP. Public videos can still trigger bot checks on Render. "
+                "Retry once after a short wait, or upload a fresh Netscape cookies.txt if the video needs authentication."
+            )
+        if "timed out" in joined:
+            return "yt-dlp could not fetch metadata before timing out. The backend may be cold-starting or YouTube may be slow; retry once."
+        return errors[-1] if errors else "yt-dlp could not fetch metadata or streams."
 
     def _command_has_cookies(self, command: list[str]) -> bool:
         return "--cookies" in command or "--cookies-from-browser" in command

@@ -38,6 +38,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate backend API URL
+        env:
+          NEXT_PUBLIC_API_BASE: ${{ vars.NEXT_PUBLIC_API_BASE }}
+        run: |
+          if [ -z "$NEXT_PUBLIC_API_BASE" ]; then
+            echo "Missing repository variable: NEXT_PUBLIC_API_BASE"
+            echo "Set it to your Render backend URL ending in /api/v1, for example:"
+            echo "https://ytpilot-backend.onrender.com/api/v1"
+            exit 1
+          fi
+          case "$NEXT_PUBLIC_API_BASE" in
+            */api/v1) ;;
+            *)
+              echo "NEXT_PUBLIC_API_BASE must end with /api/v1"
+              echo "Current value: $NEXT_PUBLIC_API_BASE"
+              exit 1
+              ;;
+          esac
+
       - name: Build static frontend
         env:
           GITHUB_PAGES: "true"

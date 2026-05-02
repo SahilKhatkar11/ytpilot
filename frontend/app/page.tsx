@@ -418,7 +418,13 @@ function isValidHttpUrl(value: string) {
 function needsCookies(message: string | null) {
   if (!message) return false;
   const normalized = message.toLowerCase();
-  return normalized.includes("sign in to confirm") || normalized.includes("not a bot") || normalized.includes("cookies") || normalized.includes("login");
+  return (
+    normalized.includes("sign in to confirm") ||
+    normalized.includes("not a bot") ||
+    normalized.includes("cookies for the authentication") ||
+    normalized.includes("youtube rejected the uploaded cookies") ||
+    normalized.includes("login")
+  );
 }
 
 function resolutionRank(resolution?: string | null) {

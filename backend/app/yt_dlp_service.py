@@ -19,7 +19,7 @@ from .cookie_store import CookieStore
 from .models import EditableMetadata, FormatOption, MediaItem, MediaKind, SubtitleOption
 
 logger = logging.getLogger(__name__)
-ANALYZE_REVISION = "youtube-client-fallback-2026-05-02-10"
+ANALYZE_REVISION = "youtube-auth-message-2026-05-02-11"
 YOUTUBE_PUBLIC_CLIENT_ARGS = ["--extractor-args", "youtube:player_client=android,web"]
 
 
@@ -219,7 +219,14 @@ class YtDlpService:
 
     def _is_youtube_auth_error(self, error_text: str) -> bool:
         normalized = error_text.lower()
-        return "sign in to confirm" in normalized or "not a bot" in normalized or "cookies for the authentication" in normalized
+        return (
+            "sign in to confirm" in normalized
+            or "not a bot" in normalized
+            or "cookies for the authentication" in normalized
+            or "age-restricted" in normalized
+            or "only available on youtube" in normalized
+            or "youtube is blocking this request" in normalized
+        )
 
     def _should_try_next_analyze_attempt(self, error_text: str) -> bool:
         normalized = error_text.lower()
@@ -237,6 +244,11 @@ class YtDlpService:
                 "YouTube rejected the uploaded cookies. On cloud hosts like Render, cookies that work locally can still be rejected "
                 "because YouTube sees a different server IP. Export a fresh Netscape cookies.txt from the same logged-in browser profile, "
                 "or retry later if YouTube is temporarily challenging the Render IP."
+            )
+        if "age-restricted" in joined or "only available on youtube" in joined:
+            return (
+                "This video requires YouTube authentication because it is age-restricted or only available on YouTube. "
+                "Upload a fresh Netscape cookies.txt from a browser profile that is logged into an eligible YouTube account, then retry."
             )
         if self._is_youtube_auth_error(joined):
             return (

@@ -423,6 +423,10 @@ function needsCookies(message: string | null) {
     normalized.includes("not a bot") ||
     normalized.includes("cookies for the authentication") ||
     normalized.includes("youtube rejected the uploaded cookies") ||
+    normalized.includes("youtube is blocking this request") ||
+    normalized.includes("age-restricted") ||
+    normalized.includes("only available on youtube") ||
+    normalized.includes("requires youtube authentication") ||
     normalized.includes("login")
   );
 }

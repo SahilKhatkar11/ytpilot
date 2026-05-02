@@ -1,4 +1,4 @@
-# YTPilot 📺
+# 📺 YTPilot
 
 🚀 **YTPilot** is a polished web interface for `yt-dlp` and FFmpeg. Paste a YouTube link, inspect available streams, choose output settings, and process media through a clean Next.js + FastAPI app.
 
@@ -19,7 +19,7 @@
 - **Frontend:** Next.js 15, React 19, Tailwind CSS, Motion
 - **Backend:** FastAPI, Pydantic, Server-Sent Events
 - **Processing:** `yt-dlp`, FFmpeg
-- **Deployment:** Render-ready backend Dockerfile and `render.yaml`
+- **Deployment:** Render-ready backend plus optional GitHub Pages static frontend
 
 ## 📁 Project Structure
 
@@ -98,11 +98,40 @@ After Render creates both services, set:
 - `CORS_ORIGIN` → your frontend URL
 - `NEXT_PUBLIC_API_BASE` → your backend URL + `/api/v1`
 
+For your current Render-style setup, that usually means:
+
+```text
+CORS_ORIGIN=https://ytpilot-frontend.onrender.com
+NEXT_PUBLIC_API_BASE=https://ytpilot-backend.onrender.com/api/v1
+```
+
 More notes are available in:
 
 ```text
 docs/render-deployment.md
 ```
+
+## 🌐 GitHub Pages Frontend + Render Backend
+
+The frontend can also be hosted as a static GitHub Pages site while the backend stays on Render.
+
+1. In GitHub, open **Settings → Pages**.
+2. Set **Source** to **GitHub Actions**.
+3. Add a repository variable:
+
+```text
+NEXT_PUBLIC_API_BASE=https://ytpilot-backend.onrender.com/api/v1
+```
+
+4. In Render backend env vars, set `CORS_ORIGIN` to your GitHub Pages origin:
+
+```text
+https://YOUR_USERNAME.github.io
+```
+
+Use only the origin here, not the `/YTPilot` repo path.
+
+The included workflow builds the frontend with `GITHUB_PAGES=true`, exports it to `frontend/out`, and deploys it to GitHub Pages. Render builds are unchanged because GitHub Pages mode only activates through that workflow flag.
 
 ## 🧪 Typical Workflow
 
@@ -117,6 +146,7 @@ docs/render-deployment.md
 
 - FFmpeg-heavy 2K/4K processing depends on server CPU and memory.
 - Free hosting tiers may be slow or may time out on large transcodes.
+- Render/cloud IPs may trigger YouTube bot checks more often than your local machine.
 - Jobs are currently stored in memory for simplicity. For production-scale use, move queue state to Redis/Postgres and store files in object storage.
 
 ## 👤 Author

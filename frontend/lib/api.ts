@@ -2,6 +2,12 @@ import type { JobRecord, MediaItem, QueuePayload } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
 const REQUEST_TIMEOUT_MS = 45000;
+const RENDER_WAKE_MESSAGE =
+  "The backend may be waking up on Render. Free Render services sleep after being idle, so please wait 30-60 seconds and try again.";
+
+function isLikelyOfflineError(error: unknown) {
+  return error instanceof TypeError || (error instanceof Error && /failed to fetch|networkerror|load failed/i.test(error.message));
+}
 
 async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs: number | null = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
@@ -10,7 +16,10 @@ async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs
     return await fetch(input, { ...init, signal: timeoutMs === null ? init.signal : controller.signal });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("The request timed out. Check the backend or your network connection and try again.");
+      throw new Error(RENDER_WAKE_MESSAGE);
+    }
+    if (isLikelyOfflineError(error)) {
+      throw new Error(`${RENDER_WAKE_MESSAGE} If this keeps happening, check the backend URL and CORS settings.`);
     }
     throw error;
   } finally {
@@ -28,7 +37,11 @@ async function parseJson<T>(response: Response): Promise<T> {
     } catch {
       detail = undefined;
     }
-    throw new Error(detail || text || "Request failed");
+    const message = detail || text || "Request failed";
+    if ([502, 503, 504].includes(response.status) && /render|service unavailable|bad gateway|gateway timeout|timeout|upstream/i.test(message)) {
+      throw new Error(`${RENDER_WAKE_MESSAGE} Details: ${message}`);
+    }
+    throw new Error(message);
   }
   return response.json() as Promise<T>;
 }

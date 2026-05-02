@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -160,20 +161,23 @@ class JobManager:
     async def _run_ytdlp(self, job_id: str, command: list[str]) -> Path:
         destination: Path | None = None
         lines: list[str] = []
-        proc = await asyncio.create_subprocess_exec(
-            *command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
+        proc = await asyncio.to_thread(
+            subprocess.Popen,
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
-        assert proc.stdout is not None
 
         while True:
-            raw = await proc.stdout.readline()
-            if not raw:
+            line = await asyncio.to_thread(proc.stdout.readline) if proc.stdout else ""
+            if not line:
                 break
-            destination = await self._handle_ytdlp_line(job_id, raw.decode(errors="replace"), lines, destination)
+            destination = await self._handle_ytdlp_line(job_id, line, lines, destination)
 
-        return_code = await proc.wait()
+        return_code = await asyncio.to_thread(proc.wait)
         if return_code != 0:
             error_line = next((line for line in reversed(lines) if "ERROR:" in line or "error" in line.lower()), "")
             raise RuntimeError(error_line or "yt-dlp download failed")

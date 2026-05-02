@@ -60,21 +60,16 @@ function Refresh-Path {
 
 function Resolve-Python {
     if (Test-Command "py") {
-        return "py -3"
+        return @{ File = "py"; Args = @("-3") }
     }
     if (Test-Command "python") {
-        return "python"
+        return @{ File = "python"; Args = @() }
     }
     throw "Python was not found after installation."
 }
 
-function Resolve-Pip {
-    param([string]$PythonCommand)
-    return "$PythonCommand -m pip"
-}
-
 function Install-PythonPackages {
-    param([string]$Root, [string]$PythonCommand)
+    param([string]$Root, [hashtable]$PythonCommand)
 
     if ($SkipPythonPackages) {
         Write-Host "Skipping Python package installation." -ForegroundColor Yellow
@@ -86,12 +81,13 @@ function Install-PythonPackages {
     $requirements = Join-Path $backendDir "requirements.txt"
 
     Write-Step "Setting up Python virtual environment"
-    & cmd /c "$PythonCommand -m venv `"$venvDir`""
+    $venvArgs = @($PythonCommand.Args) + @("-m", "venv", $venvDir)
+    & $PythonCommand.File @venvArgs
 
     $venvPython = Join-Path $venvDir "Scripts\python.exe"
     & $venvPython -m pip install --upgrade pip
     & $venvPython -m pip install -r $requirements
-    & $venvPython -m pip install yt-dlp
+    & $venvPython -c "import fastapi, uvicorn, yt_dlp; print('Backend Python packages OK')"
 }
 
 function Install-NodePackages {

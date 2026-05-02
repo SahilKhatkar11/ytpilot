@@ -39,19 +39,6 @@ function Resolve-Python {
     throw "Python was not found. Run .\setup.ps1 first."
 }
 
-function Resolve-YtDlp {
-    param([string]$ProjectRoot)
-
-    $venvYtDlp = Join-Path $ProjectRoot "backend\.venv\Scripts\yt-dlp.exe"
-    if (Test-Path $venvYtDlp) {
-        return $venvYtDlp
-    }
-    if (Test-Command "yt-dlp") {
-        return "yt-dlp"
-    }
-    throw "yt-dlp is missing. Run .\setup.ps1 again."
-}
-
 function Assert-RequiredTools {
     foreach ($commandName in @("node", "npm", "ffmpeg", "ffprobe")) {
         if (-not (Test-Command $commandName)) {
@@ -67,16 +54,15 @@ $frontendDir = Join-Path $projectRoot "frontend"
 Refresh-Path
 
 $pythonCommand = Resolve-Python -ProjectRoot $projectRoot
-$ytDlpCommand = Resolve-YtDlp -ProjectRoot $projectRoot
 
 Assert-RequiredTools
 
 Write-Step "Starting YTPilot backend on port $BackendPort"
 $backendCmd = if ($pythonCommand -like "*.exe") {
-    "`$env:YTDLP_BINARY=`"$ytDlpCommand`"; `"$pythonCommand`" -m uvicorn app.main:app --reload --port $BackendPort"
+    "& `"$pythonCommand`" -m uvicorn app.main:app --reload --host 127.0.0.1 --port $BackendPort"
 }
 else {
-    "`$env:YTDLP_BINARY=`"$ytDlpCommand`"; $pythonCommand -m uvicorn app.main:app --reload --port $BackendPort"
+    "$pythonCommand -m uvicorn app.main:app --reload --host 127.0.0.1 --port $BackendPort"
 }
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCmd -WorkingDirectory $backendDir | Out-Null
 

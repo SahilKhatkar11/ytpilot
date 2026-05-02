@@ -164,6 +164,10 @@ class YtDlpService:
             elapsed = time.perf_counter() - started
             logger.error("yt-dlp json timeout revision=%s elapsed=%.2fs timeout=%s command=%s", ANALYZE_REVISION, elapsed, timeout, command)
             raise RuntimeError(f"yt-dlp analysis timed out after {timeout} seconds") from exc
+        except RuntimeError as exc:
+            safe_command = self._redact_command(command)
+            detail = str(exc) or repr(exc) or "yt-dlp process failed before returning output"
+            raise RuntimeError(f"{detail}\nCommand: {' '.join(safe_command)}") from exc
         elapsed = time.perf_counter() - started
         logger.info(
             "yt-dlp json done revision=%s elapsed=%.2fs returncode=%s stderr=%s",
@@ -174,7 +178,7 @@ class YtDlpService:
         )
         if completed.returncode != 0:
             safe_command = self._redact_command(command)
-            error_text = completed.stderr or completed.stdout or "yt-dlp failed"
+            error_text = completed.stderr or completed.stdout or f"yt-dlp failed with exit code {completed.returncode}"
             if self._is_youtube_auth_error(error_text) and self._command_has_cookies(command):
                 raise RuntimeError(
                     "YouTube rejected the uploaded cookies. Export a fresh Netscape cookies.txt from the same browser profile where YouTube is logged in, then upload that new file and retry."
@@ -204,24 +208,17 @@ class YtDlpService:
 
     async def _run_process(self, command: list[str], timeout_seconds: int | None = None) -> subprocess.CompletedProcess[str]:
         timeout = timeout_seconds or self.analysis_timeout_seconds
-        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-        proc = await asyncio.create_subprocess_exec(
-            *command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            creationflags=creationflags,
-        )
         try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        except asyncio.TimeoutError as exc:
-            await self._terminate_process(proc)
+            return await asyncio.to_thread(
+                subprocess.run,
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
             raise TimeoutError from exc
-        return subprocess.CompletedProcess(
-            args=command,
-            returncode=proc.returncode or 0,
-            stdout=stdout.decode(errors="replace"),
-            stderr=stderr.decode(errors="replace"),
-        )
 
     async def _terminate_process(self, proc: asyncio.subprocess.Process) -> None:
         if proc.returncode is not None:

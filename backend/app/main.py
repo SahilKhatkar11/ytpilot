@@ -53,8 +53,9 @@ async def analyze(payload: AnalyzeRequest):
         item = await ytdlp.analyze(payload.url, cookies_token=payload.cookies_token)
         return item
     except RuntimeError as exc:
-        print(f"Analyze failed for url={payload.url!r}: {exc}", flush=True)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        detail = str(exc) or repr(exc) or "Analysis failed without an error message. Check the backend yt-dlp configuration."
+        print(f"Analyze failed for url={payload.url!r}: {detail}", flush=True)
+        raise HTTPException(status_code=502, detail=detail) from exc
 
 
 @app.post(f"{settings.api_prefix}/cookies")

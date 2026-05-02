@@ -19,7 +19,7 @@ from .cookie_store import CookieStore
 from .models import EditableMetadata, FormatOption, MediaItem, MediaKind, SubtitleOption
 
 logger = logging.getLogger(__name__)
-ANALYZE_REVISION = "token-cookies-opt-in-2026-04-29-07"
+ANALYZE_REVISION = "ignore-config-metadata-2026-05-02-09"
 
 
 class YtDlpService:
@@ -110,8 +110,10 @@ class YtDlpService:
     def _metadata_command(self, cookies_token: str | None = None) -> list[str]:
         return [
             self.binary,
+            "--ignore-config",
             "--dump-single-json",
             "--no-warnings",
+            "--skip-download",
             *self._auth_args(cookies_token),
         ]
 
@@ -127,6 +129,7 @@ class YtDlpService:
     def _flat_analyze_command(self, url: str, cookies_token: str | None = None) -> list[str]:
         command = [
             self.binary,
+            "--ignore-config",
             "--dump-single-json",
             "--no-warnings",
             *self._auth_args(cookies_token),
@@ -172,8 +175,19 @@ class YtDlpService:
         if completed.returncode != 0:
             safe_command = self._redact_command(command)
             error_text = completed.stderr or completed.stdout or "yt-dlp failed"
+            if self._is_youtube_auth_error(error_text) and self._command_has_cookies(command):
+                raise RuntimeError(
+                    "YouTube rejected the uploaded cookies. Export a fresh Netscape cookies.txt from the same browser profile where YouTube is logged in, then upload that new file and retry."
+                )
             raise RuntimeError(f"{error_text}\nCommand: {' '.join(safe_command)}")
         return json.loads(completed.stdout)
+
+    def _is_youtube_auth_error(self, error_text: str) -> bool:
+        normalized = error_text.lower()
+        return "sign in to confirm" in normalized or "not a bot" in normalized or "cookies for the authentication" in normalized
+
+    def _command_has_cookies(self, command: list[str]) -> bool:
+        return "--cookies" in command or "--cookies-from-browser" in command
 
     def _redact_command(self, command: list[str]) -> list[str]:
         safe: list[str] = []
@@ -425,6 +439,7 @@ class YtDlpService:
     ) -> list[str]:
         command = [
             *self._base_command(),
+            "--ignore-config",
             "--newline",
             "--no-colors",
             "--progress",

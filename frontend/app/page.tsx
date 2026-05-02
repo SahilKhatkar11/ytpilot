@@ -139,7 +139,8 @@ export default function HomePage() {
     try {
       const result = await uploadCookiesFile(file);
       setCookiesToken(result.token);
-      setCookiesMessage(`Cookies ready for ${result.expires_in_minutes} minutes. Try Analyze again.`);
+      const warningText = result.warnings?.length ? ` ${result.warnings.join(" ")}` : "";
+      setCookiesMessage(`Cookies loaded for ${result.expires_in_minutes} minutes. Try Analyze again.${warningText}`);
     } catch (err) {
       setCookiesMessage(null);
       setError(err instanceof Error ? err.message : "Could not upload cookies.txt.");

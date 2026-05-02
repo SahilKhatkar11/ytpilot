@@ -42,14 +42,14 @@ export async function analyzeUrl(url: string, cookiesToken?: string | null): Pro
   return parseJson<MediaItem>(response);
 }
 
-export async function uploadCookiesFile(file: File): Promise<{ token: string; expires_in_minutes: string }> {
+export async function uploadCookiesFile(file: File): Promise<{ token: string; expires_in_minutes: string; warnings?: string[] }> {
   const form = new FormData();
   form.append("file", file);
   const response = await fetchWithTimeout(`${API_BASE}/cookies`, {
     method: "POST",
     body: form
   }, 30000);
-  return parseJson<{ token: string; expires_in_minutes: string }>(response);
+  return parseJson<{ token: string; expires_in_minutes: string; warnings?: string[] }>(response);
 }
 
 export async function clearCookiesToken(token: string): Promise<void> {

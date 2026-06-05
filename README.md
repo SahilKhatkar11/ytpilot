@@ -85,6 +85,27 @@ If a cookie upload is missing common YouTube/Google authentication cookies, the 
 
 Do **not** commit personal cookies or `.env` files. The included `.gitignore` excludes local cookies, temporary uploads, generated media, virtual environments, and build output.
 
+## YouTube PO Tokens
+
+The backend Docker image includes `bgutil-ytdlp-pot-provider` and its matching
+Node.js token generator. On startup, FastAPI launches the generator on
+`127.0.0.1:4416`, and yt-dlp first attempts YouTube extraction with the `mweb`
+client and an automatically generated Proof-of-Origin token.
+
+After deployment, inspect:
+
+```text
+/debug/yt-dlp
+```
+
+The response reports the plugin version, provider process state, and readiness.
+If the provider is unavailable during local development, YTPilot falls back to
+the normal yt-dlp client path.
+
+PO tokens can improve YouTube `403` and bot-check failures, but they cannot
+guarantee access when the hosting provider IP is already rate-limited with
+`429 Too Many Requests`.
+
 ## ☁️ Render Deployment
 
 This repo includes a Render blueprint:

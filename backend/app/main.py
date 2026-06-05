@@ -11,6 +11,7 @@ from .config import settings
 from .cookie_store import CookieStore
 from .job_manager import JobManager
 from .models import AnalyzeRequest, QueueItemRequest, SearchRequest
+from .pot_provider import PotProvider
 from .yt_dlp_service import YtDlpService
 
 if hasattr(asyncio, "WindowsProactorEventLoopPolicy"):
@@ -19,12 +20,15 @@ if hasattr(asyncio, "WindowsProactorEventLoopPolicy"):
 cookie_store = CookieStore()
 job_manager = JobManager(cookie_store=cookie_store)
 ytdlp = YtDlpService(cookie_store=cookie_store)
+pot_provider = PotProvider()
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    await pot_provider.start()
     yield
     await job_manager.cleanup()
+    await pot_provider.stop()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -44,7 +48,13 @@ async def health() -> dict[str, str]:
 
 @app.get("/debug/yt-dlp")
 async def ytdlp_debug():
-    return ytdlp.diagnostics()
+    return {
+        **ytdlp.diagnostics(),
+        "pot_provider": {
+            **pot_provider.diagnostics(),
+            "ready": await pot_provider.is_ready(),
+        },
+    }
 
 
 @app.post(f"{settings.api_prefix}/analyze")

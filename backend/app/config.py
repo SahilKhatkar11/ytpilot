@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     ytdlp_cookies_from_browser: str | None = None
     ffmpeg_binary: str = _resolve_binary("ffmpeg", BACKEND_ROOT / "tools" / "ffmpeg" / "bin" / "ffmpeg.exe")
     ffprobe_binary: str = _resolve_binary("ffprobe", BACKEND_ROOT / "tools" / "ffmpeg" / "bin" / "ffprobe.exe")
+    pot_provider_enabled: bool = True
+    pot_provider_url: str = "http://127.0.0.1:4416"
+    pot_provider_server: Path | None = None
+    pot_provider_startup_seconds: int = 20
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

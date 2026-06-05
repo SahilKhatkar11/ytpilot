@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.metadata
 import json
 import logging
 import os
@@ -19,7 +20,7 @@ from .cookie_store import CookieStore
 from .models import EditableMetadata, FormatOption, MediaItem, MediaKind, SubtitleOption
 
 logger = logging.getLogger(__name__)
-ANALYZE_REVISION = "youtube-auth-message-2026-05-02-11"
+ANALYZE_REVISION = "automatic-pot-provider-2026-06-05"
 YOUTUBE_PUBLIC_CLIENT_ARGS = ["--extractor-args", "youtube:player_client=android,web"]
 
 
@@ -67,6 +68,9 @@ class YtDlpService:
                         break
                     except RuntimeError as fallback_exc:
                         errors.append(str(fallback_exc))
+                if attempt["label"] == "mweb-pot-provider":
+                    logger.warning("PO-token analysis attempt failed; trying standard clients url=%s", normalized_url)
+                    continue
                 if not self._should_try_next_analyze_attempt(error_text):
                     raise
 
@@ -102,6 +106,11 @@ class YtDlpService:
         except Exception as exc:
             binary_error = str(exc)
 
+        try:
+            pot_plugin_version = importlib.metadata.version("bgutil-ytdlp-pot-provider")
+        except importlib.metadata.PackageNotFoundError:
+            pot_plugin_version = None
+
         return {
             "revision": ANALYZE_REVISION,
             "python_executable": sys.executable,
@@ -115,11 +124,14 @@ class YtDlpService:
             "yt_dlp_binary_version": binary_version,
             "yt_dlp_binary_error": binary_error,
             "analysis_timeout_seconds": self.analysis_timeout_seconds,
+            "pot_plugin_version": pot_plugin_version,
+            "pot_client_enabled": settings.pot_provider_enabled,
+            "pot_provider_url": settings.pot_provider_url,
         }
 
     async def search(self, query: str, limit: int) -> list[MediaItem]:
         payload = await self._run_json(
-            [*self._metadata_command(), "--playlist-end", str(limit), f"ytsearch{limit}:{query}"],
+            [*self._metadata_command(client_args=self._pot_client_args()), "--playlist-end", str(limit), f"ytsearch{limit}:{query}"],
             timeout_seconds=45,
         )
         entries = payload.get("entries") or []
@@ -129,11 +141,17 @@ class YtDlpService:
         return [sys.executable, "-m", "yt_dlp"]
 
     def _analyze_attempts(self, cookies_token: str | None = None) -> list[dict[str, Any]]:
-        attempts: list[dict[str, Any]] = [{"label": "default", "cookies_token": cookies_token, "client_args": []}]
-        if cookies_token:
-            attempts.append({"label": "public-client-fallback", "cookies_token": None, "client_args": YOUTUBE_PUBLIC_CLIENT_ARGS})
-        else:
-            attempts.append({"label": "public-client-fallback", "cookies_token": None, "client_args": YOUTUBE_PUBLIC_CLIENT_ARGS})
+        attempts: list[dict[str, Any]] = []
+        if settings.pot_provider_enabled:
+            attempts.append(
+                {
+                    "label": "mweb-pot-provider",
+                    "cookies_token": cookies_token,
+                    "client_args": self._pot_client_args(),
+                }
+            )
+        attempts.append({"label": "default", "cookies_token": cookies_token, "client_args": []})
+        attempts.append({"label": "public-client-fallback", "cookies_token": None, "client_args": YOUTUBE_PUBLIC_CLIENT_ARGS})
         return attempts
 
     def _metadata_command(self, cookies_token: str | None = None, client_args: list[str] | None = None) -> list[str]:
@@ -509,6 +527,7 @@ class YtDlpService:
             "--newline",
             "--no-colors",
             "--progress",
+            *self._pot_client_args(),
             *self._auth_args(cookies_token),
             "-f",
             format_selector,
@@ -537,6 +556,19 @@ class YtDlpService:
                 command.append(f"--{normalized}")
         command.append(source_url)
         return command
+
+    def _pot_client_args(self) -> list[str]:
+        if not settings.pot_provider_enabled:
+            return []
+        args = ["--extractor-args", "youtube:player_client=mweb"]
+        if settings.pot_provider_url.rstrip("/") != "http://127.0.0.1:4416":
+            args.extend(
+                [
+                    "--extractor-args",
+                    f"youtubepot-bgutilhttp:base_url={settings.pot_provider_url.rstrip('/')}",
+                ]
+            )
+        return args
 
     def _auth_args(self, cookies_token: str | None = None) -> list[str]:
         uploaded_cookie_path = self.cookie_store.resolve(cookies_token) if self.cookie_store else None

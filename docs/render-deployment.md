@@ -15,6 +15,29 @@ Do not commit:
 - `backend/storage/cookies_uploads/`
 - generated files under `backend/storage/tmp/` or `backend/storage/output/`
 
+## Automatic PO Tokens
+
+The backend Docker image builds and runs `bgutil-ytdlp-pot-provider` 1.3.1 as a
+localhost-only sidecar. The matching Python plugin is installed from
+`backend/requirements.txt`.
+
+The Render blueprint enables it with:
+
+```text
+POT_PROVIDER_ENABLED=true
+POT_PROVIDER_URL=http://127.0.0.1:4416
+```
+
+After deployment, open `/debug/yt-dlp` on the backend and confirm:
+
+- `pot_plugin_version` is `1.3.1`
+- `pot_provider.enabled` is `true`
+- `pot_provider.managed_process_running` is `true`
+- `pot_provider.ready` is `true`
+
+The provider improves request attestation but does not replace request
+throttling and cannot clear a `429` block already attached to Render's IP.
+
 ## Render Setup
 
 1. Push the project to GitHub after confirming `.gitignore` is active.

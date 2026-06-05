@@ -15,6 +15,10 @@ services:
         value: /tmp/ytpilot-storage/output
       - key: MAX_PARALLEL_JOBS
         value: 1
+      - key: POT_PROVIDER_ENABLED
+        value: true
+      - key: POT_PROVIDER_URL
+        value: http://127.0.0.1:4416
 
   - type: web
     name: ytpilot-frontend

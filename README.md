@@ -116,7 +116,7 @@ render.yaml
 
 After Render creates both services, set:
 
-- `CORS_ORIGIN` → your frontend URL
+- `CORS_ORIGIN` → your frontend origin, without a path; multiple custom origins can be comma-separated
 - `NEXT_PUBLIC_API_BASE` → your backend URL + `/api/v1`
 
 For your current Render-style setup, that usually means:
@@ -151,6 +151,10 @@ https://YOUR_USERNAME.github.io
 ```
 
 Use only the origin here, not the `/YTPilot` repo path.
+
+Render `*.onrender.com` and GitHub Pages `*.github.io` origins are accepted by
+the backend's default hosted-origin policy. Keep `CORS_ORIGIN` updated for any
+custom frontend domain.
 
 The included workflow builds the frontend with `GITHUB_PAGES=true`, exports it to `frontend/out`, and deploys it to GitHub Pages. Render builds are unchanged because GitHub Pages mode only activates through that workflow flag.
 

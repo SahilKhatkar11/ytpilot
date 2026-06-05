@@ -12,6 +12,11 @@ function isLikelyOfflineError(error: unknown) {
   return error instanceof TypeError || (error instanceof Error && /failed to fetch|networkerror|load failed/i.test(error.message));
 }
 
+function networkAccessMessage() {
+  const frontendOrigin = typeof window === "undefined" ? "this frontend" : window.location.origin;
+  return `The browser could not reach ${API_BASE} from ${frontendOrigin}. The backend may be live, but the request was blocked by CORS, an incorrect NEXT_PUBLIC_API_BASE value, or mixed HTTP/HTTPS configuration.`;
+}
+
 async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs: number | null = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
   const timeout = timeoutMs === null ? null : setTimeout(() => controller.abort(), timeoutMs);
@@ -22,7 +27,7 @@ async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs
       throw new Error(RENDER_WAKE_MESSAGE);
     }
     if (isLikelyOfflineError(error)) {
-      throw new Error(`${RENDER_WAKE_MESSAGE} If this keeps happening, check the backend URL and CORS settings.`);
+      throw new Error(networkAccessMessage());
     }
     throw error;
   } finally {

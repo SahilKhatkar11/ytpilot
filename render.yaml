@@ -6,7 +6,7 @@ services:
     plan: free
     envVars:
       - key: CORS_ORIGIN
-        value: https://your-frontend-domain.example
+        value: http://localhost:3000
       - key: STORAGE_ROOT
         value: /tmp/ytpilot-storage
       - key: TEMP_ROOT

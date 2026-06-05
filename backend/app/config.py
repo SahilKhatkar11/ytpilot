@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     app_name: str = "YTPilot API"
     api_prefix: str = "/api/v1"
     cors_origin: str = "http://localhost:3000"
+    cors_origin_regex: str = r"^https://[a-z0-9-]+\.onrender\.com$|^https://[^/]+\.github\.io$"
     download_base_url: str = "http://localhost:8000"
     storage_root: Path = Path("storage")
     temp_root: Path = Path("storage/tmp")
@@ -40,6 +41,10 @@ class Settings(BaseSettings):
     pot_provider_startup_seconds: int = 20
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip().rstrip("/") for origin in self.cors_origin.split(",") if origin.strip()]
 
 
 settings = Settings()

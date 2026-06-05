@@ -43,7 +43,10 @@ throttling and cannot clear a `429` block already attached to Render's IP.
 1. Push the project to GitHub after confirming `.gitignore` is active.
 2. Create the backend web service from `backend`.
 3. Create the frontend web service from `frontend`.
-4. Set backend `CORS_ORIGIN` to the frontend Render URL.
+4. Set backend `CORS_ORIGIN` to the frontend origin without a path. Multiple custom origins can be comma-separated.
 5. Set frontend `NEXT_PUBLIC_API_BASE` to the backend Render URL plus `/api/v1`.
+
+The backend accepts HTTPS origins under `*.onrender.com` and `*.github.io` by
+default. A custom domain must be included in `CORS_ORIGIN`.
 
 For public demos, keep `MAX_PARALLEL_JOBS=1` on free/low-CPU hosts. 4K transcoding can be slow and may exceed free-tier limits.

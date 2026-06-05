@@ -3,6 +3,7 @@ FROM node:22-bookworm-slim AS pot-provider-builder
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
+        ca-certificates \
         git \
         libcairo2-dev \
         libgif-dev \
@@ -11,6 +12,7 @@ RUN apt-get update \
         librsvg2-dev \
         pkg-config \
         python3 \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone --depth 1 --branch 1.3.1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /opt/bgutil-provider \
@@ -27,12 +29,14 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        ca-certificates \
         ffmpeg \
         libcairo2 \
         libgif7 \
         libjpeg62-turbo \
         libpango-1.0-0 \
         librsvg2-2 \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=pot-provider-builder /usr/local/bin/node /usr/local/bin/node

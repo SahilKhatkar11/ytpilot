@@ -46,7 +46,7 @@ class YtDlpService:
             try:
                 payload = await self._run_json(
                     self._analyze_command(normalized_url, attempt["cookies_token"], attempt["client_args"]),
-                    timeout_seconds=120,
+                    timeout_seconds=45,
                 )
                 item = self._map_media_item(payload, source_url=normalized_url)
                 break
@@ -62,7 +62,7 @@ class YtDlpService:
                     try:
                         payload = await self._run_json(
                             self._flat_analyze_command(normalized_url, attempt["cookies_token"], attempt["client_args"]),
-                            timeout_seconds=45,
+                            timeout_seconds=20,
                         )
                         item = self._map_flat_media_item(payload, source_url=normalized_url)
                         break
@@ -124,6 +124,7 @@ class YtDlpService:
             "yt_dlp_binary_version": binary_version,
             "yt_dlp_binary_error": binary_error,
             "analysis_timeout_seconds": self.analysis_timeout_seconds,
+            "force_ipv4": settings.ytdlp_force_ipv4,
             "pot_plugin_version": pot_plugin_version,
             "pot_client_enabled": settings.pot_provider_enabled,
             "pot_provider_url": settings.pot_provider_url,
@@ -156,11 +157,12 @@ class YtDlpService:
 
     def _metadata_command(self, cookies_token: str | None = None, client_args: list[str] | None = None) -> list[str]:
         return [
-            self.binary,
+            *self._base_command(),
             "--ignore-config",
             "--dump-single-json",
             "--no-warnings",
             "--skip-download",
+            *self._network_args(),
             *(client_args or []),
             *self._auth_args(cookies_token),
         ]
@@ -176,10 +178,11 @@ class YtDlpService:
 
     def _flat_analyze_command(self, url: str, cookies_token: str | None = None, client_args: list[str] | None = None) -> list[str]:
         command = [
-            self.binary,
+            *self._base_command(),
             "--ignore-config",
             "--dump-single-json",
             "--no-warnings",
+            *self._network_args(),
             *(client_args or []),
             *self._auth_args(cookies_token),
             "--skip-download",
@@ -527,6 +530,7 @@ class YtDlpService:
             "--newline",
             "--no-colors",
             "--progress",
+            *self._network_args(),
             *self._pot_client_args(),
             *self._auth_args(cookies_token),
             "-f",
@@ -556,6 +560,9 @@ class YtDlpService:
                 command.append(f"--{normalized}")
         command.append(source_url)
         return command
+
+    def _network_args(self) -> list[str]:
+        return ["--force-ipv4"] if settings.ytdlp_force_ipv4 else []
 
     def _pot_client_args(self) -> list[str]:
         if not settings.pot_provider_enabled:

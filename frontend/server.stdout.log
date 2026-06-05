@@ -1,0 +1,18 @@
+
+> ytpilot-frontend@0.1.0 dev
+> next dev --port 3000
+
+   ▲ Next.js 15.3.1
+   - Local:        http://localhost:3000
+   - Network:      http://10.50.253.231:3000
+
+ ✓ Starting...
+ ✓ Ready in 4s
+ ○ Compiling / ...
+ ✓ Compiled / in 8.4s (1560 modules)
+ GET / 200 in 9119ms
+ GET / 200 in 154ms
+ GET / 200 in 124ms
+ ○ Compiling /icon.svg ...
+ ✓ Compiled /icon.svg in 624ms (826 modules)
+ GET /icon.svg 200 in 795ms

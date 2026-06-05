@@ -3,6 +3,7 @@ import type { JobRecord, MediaItem, QueuePayload } from "@/types";
 const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE?.trim();
 const API_BASE = (configuredApiBase || "http://localhost:8000/api/v1").replace(/\/$/, "");
 const REQUEST_TIMEOUT_MS = 45000;
+const ANALYZE_TIMEOUT_MS = 150000;
 const RENDER_WAKE_MESSAGE =
   "The backend may be waking up on Render. Free Render services sleep after being idle, so please wait 30-60 seconds and try again.";
 const WRONG_API_HOST_MESSAGE =
@@ -62,7 +63,7 @@ export async function analyzeUrl(url: string, cookiesToken?: string | null): Pro
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url, cookies_token: cookiesToken ?? null })
-  }, null);
+  }, ANALYZE_TIMEOUT_MS);
   return parseJson<MediaItem>(response);
 }
 
@@ -88,7 +89,7 @@ export async function searchCatalog(query: string): Promise<MediaItem[]> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, limit: 6 })
-  }, null);
+  }, ANALYZE_TIMEOUT_MS);
   const payload = await parseJson<{ results: MediaItem[] }>(response);
   return payload.results;
 }

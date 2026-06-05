@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     ytdlp_binary: str = _resolve_binary("yt-dlp", BACKEND_ROOT / ".venv" / "Scripts" / "yt-dlp.exe")
     ytdlp_cookies_file: Path | None = None
     ytdlp_cookies_from_browser: str | None = None
+    ytdlp_force_ipv4: bool = True
     ffmpeg_binary: str = _resolve_binary("ffmpeg", BACKEND_ROOT / "tools" / "ffmpeg" / "bin" / "ffmpeg.exe")
     ffprobe_binary: str = _resolve_binary("ffprobe", BACKEND_ROOT / "tools" / "ffmpeg" / "bin" / "ffprobe.exe")
     pot_provider_enabled: bool = True

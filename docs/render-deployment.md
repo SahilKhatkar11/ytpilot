@@ -38,6 +38,10 @@ After deployment, open `/debug/yt-dlp` on the backend and confirm:
 The provider improves request attestation but does not replace request
 throttling and cannot clear a `429` block already attached to Render's IP.
 
+Users can enable the Android client toggle before analysis. Android mode uses a
+separate YouTube client path and bypasses cookies and the web PO-token provider.
+It may help with client-specific `403` responses but can return fewer formats.
+
 ## Render Setup
 
 1. Push the project to GitHub after confirming `.gitignore` is active.

@@ -66,6 +66,7 @@ class MediaItem(BaseModel):
 class AnalyzeRequest(BaseModel):
     url: str
     cookies_token: str | None = None
+    force_android_client: bool = False
 
 
 class SearchRequest(BaseModel):
@@ -85,6 +86,7 @@ class JobOptions(BaseModel):
     metadata: EditableMetadata
     trim: TrimOptions | None = None
     cookies_token: str | None = None
+    force_android_client: bool = False
 
 
 class QueueItemRequest(BaseModel):

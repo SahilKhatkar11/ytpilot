@@ -2,6 +2,7 @@
 
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { Smartphone } from "lucide-react";
 
 import AnalysisPanel from "@/components/AnalysisPanel";
 import Footer from "@/components/Footer";
@@ -26,6 +27,7 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [cookiesToken, setCookiesToken] = useState<string | null>(null);
   const [cookiesMessage, setCookiesMessage] = useState<string | null>(null);
+  const [forceAndroidClient, setForceAndroidClient] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
@@ -89,7 +91,7 @@ export default function HomePage() {
     setStatus("analyzing");
     setError(null);
     try {
-      const payload = await analyzeUrl(trimmedUrl, cookiesToken);
+      const payload = await analyzeUrl(trimmedUrl, cookiesToken, forceAndroidClient);
       setMetadata(payload);
       setStatus("analyzed");
     } catch (err) {
@@ -212,7 +214,8 @@ export default function HomePage() {
             cover_url: config.type === "audio" ? config.metadata.thumbnailUrl || null : null
           },
           trim: config.trim,
-          cookies_token: cookiesToken
+          cookies_token: forceAndroidClient ? null : cookiesToken,
+          force_android_client: forceAndroidClient
         }
       };
 
@@ -288,6 +291,37 @@ export default function HomePage() {
             void handleAnalyze(sourceUrl);
           }}
         />
+
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white/60 px-4 py-3 backdrop-blur-md dark:border-white/10 dark:bg-slate-900/55">
+          <div className="flex min-w-0 items-center gap-3">
+            <Smartphone className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-100">Android client spoof</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                Uses YouTube&apos;s Android client without cookies or web PO tokens.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={forceAndroidClient}
+            aria-label="Force Android YouTube client"
+            disabled={status === "analyzing"}
+            onClick={() => setForceAndroidClient((current) => !current)}
+            className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              forceAndroidClient
+                ? "border-emerald-500 bg-emerald-500"
+                : "border-slate-300 bg-slate-200 dark:border-white/20 dark:bg-white/10"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform ${
+                forceAndroidClient ? "translate-x-5" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
 
         {needsCookies(error) || cookiesMessage || cookiesToken ? (
           <div className="mx-auto w-full max-w-2xl rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm text-amber-700 shadow-lg backdrop-blur-md dark:text-amber-100">

@@ -54,6 +54,7 @@ export interface JobOptions {
     end: string;
   } | null;
   cookies_token?: string | null;
+  force_android_client: boolean;
 }
 
 export interface QueuePayload {

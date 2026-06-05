@@ -108,6 +108,7 @@ class JobManager:
                     subtitle_languages=subtitle_languages,
                     extra_args=record.item.options.custom_args,
                     cookies_token=record.item.options.cookies_token,
+                    force_android_client=record.item.options.force_android_client,
                 )
                 downloaded_path = await self._run_ytdlp(job_id, command)
                 subtitle_paths = self._subtitle_paths(job_id) if record.item.options.embed_subtitles else []

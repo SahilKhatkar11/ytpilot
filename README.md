@@ -106,6 +106,11 @@ PO tokens can improve YouTube `403` and bot-check failures, but they cannot
 guarantee access when the hosting provider IP is already rate-limited with
 `429 Too Many Requests`.
 
+The main page also includes an **Android client spoof** toggle. When enabled,
+analysis and downloads use `youtube:player_client=android` and intentionally
+skip cookies and web PO-token arguments. This alternate client can expose fewer
+formats and cannot remove an IP-level `429`.
+
 ## ☁️ Render Deployment
 
 This repo includes a Render blueprint:

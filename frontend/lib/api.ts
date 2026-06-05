@@ -58,11 +58,15 @@ async function parseJson<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function analyzeUrl(url: string, cookiesToken?: string | null): Promise<MediaItem> {
+export async function analyzeUrl(url: string, cookiesToken?: string | null, forceAndroidClient = false): Promise<MediaItem> {
   const response = await fetchWithTimeout(`${API_BASE}/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, cookies_token: cookiesToken ?? null })
+    body: JSON.stringify({
+      url,
+      cookies_token: forceAndroidClient ? null : cookiesToken ?? null,
+      force_android_client: forceAndroidClient
+    })
   }, ANALYZE_TIMEOUT_MS);
   return parseJson<MediaItem>(response);
 }

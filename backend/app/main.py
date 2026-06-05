@@ -61,7 +61,11 @@ async def ytdlp_debug():
 @app.post(f"{settings.api_prefix}/analyze")
 async def analyze(payload: AnalyzeRequest):
     try:
-        item = await ytdlp.analyze(payload.url, cookies_token=payload.cookies_token)
+        item = await ytdlp.analyze(
+            payload.url,
+            cookies_token=payload.cookies_token,
+            force_android_client=payload.force_android_client,
+        )
         return item
     except RuntimeError as exc:
         detail = str(exc) or repr(exc) or "Analysis failed without an error message. Check the backend yt-dlp configuration."

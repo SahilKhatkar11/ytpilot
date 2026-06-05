@@ -32,9 +32,14 @@ class YtDlpService:
         self.playlist_limit = 50
         self._analysis_cache: dict[str, MediaItem] = {}
 
-    async def analyze(self, url: str, cookies_token: str | None = None) -> MediaItem:
+    async def analyze(
+        self,
+        url: str,
+        cookies_token: str | None = None,
+        force_android_client: bool = False,
+    ) -> MediaItem:
         normalized_url = url.strip()
-        cache_key = f"{normalized_url}::{cookies_token or ''}"
+        cache_key = f"{normalized_url}::{cookies_token or ''}::android={force_android_client}"
         cached = self._analysis_cache.get(cache_key)
         if cached:
             logger.info("analyze cache hit url=%s revision=%s", normalized_url, ANALYZE_REVISION)
@@ -42,7 +47,7 @@ class YtDlpService:
 
         errors: list[str] = []
         item: MediaItem | None = None
-        for attempt in self._analyze_attempts(cookies_token):
+        for attempt in self._analyze_attempts(cookies_token, force_android_client):
             try:
                 payload = await self._run_json(
                     self._analyze_command(normalized_url, attempt["cookies_token"], attempt["client_args"]),
@@ -141,7 +146,20 @@ class YtDlpService:
     def _base_command(self) -> list[str]:
         return [sys.executable, "-m", "yt_dlp"]
 
-    def _analyze_attempts(self, cookies_token: str | None = None) -> list[dict[str, Any]]:
+    def _analyze_attempts(
+        self,
+        cookies_token: str | None = None,
+        force_android_client: bool = False,
+    ) -> list[dict[str, Any]]:
+        if force_android_client:
+            return [
+                {
+                    "label": "android-client",
+                    "cookies_token": None,
+                    "client_args": self._android_client_args(),
+                }
+            ]
+
         attempts: list[dict[str, Any]] = []
         if settings.pot_provider_enabled:
             attempts.append(
@@ -523,7 +541,10 @@ class YtDlpService:
         subtitle_languages: list[str],
         extra_args: dict[str, str],
         cookies_token: str | None = None,
+        force_android_client: bool = False,
     ) -> list[str]:
+        client_args = self._android_client_args() if force_android_client else self._pot_client_args()
+        auth_args = [] if force_android_client else self._auth_args(cookies_token)
         command = [
             *self._base_command(),
             "--ignore-config",
@@ -531,8 +552,8 @@ class YtDlpService:
             "--no-colors",
             "--progress",
             *self._network_args(),
-            *self._pot_client_args(),
-            *self._auth_args(cookies_token),
+            *client_args,
+            *auth_args,
             "-f",
             format_selector,
             "-o",
@@ -563,6 +584,9 @@ class YtDlpService:
 
     def _network_args(self) -> list[str]:
         return ["--force-ipv4"] if settings.ytdlp_force_ipv4 else []
+
+    def _android_client_args(self) -> list[str]:
+        return ["--extractor-args", "youtube:player_client=android"]
 
     def _pot_client_args(self) -> list[str]:
         if not settings.pot_provider_enabled:

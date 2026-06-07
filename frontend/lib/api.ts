@@ -4,10 +4,35 @@ const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE?.trim();
 const API_BASE = (configuredApiBase || "http://localhost:8000/api/v1").replace(/\/$/, "");
 const REQUEST_TIMEOUT_MS = 45000;
 const ANALYZE_TIMEOUT_MS = 150000;
-const RENDER_WAKE_MESSAGE =
-  "The backend may be waking up on Render. Free Render services sleep after being idle, so please wait 30-60 seconds and try again.";
 const WRONG_API_HOST_MESSAGE =
   "The frontend is not pointing to the FastAPI backend. Set NEXT_PUBLIC_API_BASE to your Render backend URL ending in /api/v1, for example https://ytpilot-backend.onrender.com/api/v1.";
+
+interface ApiErrorDetail {
+  code?: string;
+  title?: string;
+  message?: string;
+}
+
+function formatApiDetail(detail: unknown, status: number): string {
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+    const structured = detail as ApiErrorDetail;
+    const message = [structured.title, structured.message].filter(Boolean).join(": ");
+    if (message) return message;
+  }
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (!item || typeof item !== "object") return "";
+        const validation = item as { msg?: string; loc?: Array<string | number> };
+        const location = validation.loc?.slice(1).join(".");
+        return [location, validation.msg].filter(Boolean).join(": ");
+      })
+      .filter(Boolean);
+    if (messages.length) return `Request Validation Failed: ${messages.join("; ")}`;
+  }
+  return `Request Failed: The backend returned HTTP ${status}.`;
+}
 
 function isLikelyOfflineError(error: unknown) {
   return error instanceof TypeError || (error instanceof Error && /failed to fetch|networkerror|load failed/i.test(error.message));
@@ -15,7 +40,7 @@ function isLikelyOfflineError(error: unknown) {
 
 function networkAccessMessage() {
   const frontendOrigin = typeof window === "undefined" ? "this frontend" : window.location.origin;
-  return `The browser could not reach ${API_BASE} from ${frontendOrigin}. The backend may be live, but the request was blocked by CORS, an incorrect NEXT_PUBLIC_API_BASE value, or mixed HTTP/HTTPS configuration.`;
+  return `Backend Unreachable: The browser could not connect to ${API_BASE} from ${frontendOrigin}. The browser does not expose whether this was DNS, CORS, TLS, mixed-content, or a refused connection; check its Network/Console details.`;
 }
 
 async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs: number | null = REQUEST_TIMEOUT_MS): Promise<Response> {
@@ -25,7 +50,7 @@ async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs
     return await fetch(input, { ...init, signal: timeoutMs === null ? init.signal : controller.signal });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(RENDER_WAKE_MESSAGE);
+      throw new Error(`Request Timed Out: The backend did not respond within ${Math.round((timeoutMs ?? REQUEST_TIMEOUT_MS) / 1000)} seconds.`);
     }
     if (isLikelyOfflineError(error)) {
       throw new Error(networkAccessMessage());
@@ -39,19 +64,19 @@ async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs
 async function parseJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const text = await response.text();
-    let detail: string | undefined;
+    let detail: unknown;
     try {
-      const payload = JSON.parse(text) as { detail?: string };
+      const payload = JSON.parse(text) as { detail?: string | ApiErrorDetail };
       detail = payload.detail;
     } catch {
       detail = undefined;
     }
-    const message = detail || text || "Request failed";
+    const message = detail === undefined ? text || formatApiDetail(detail, response.status) : formatApiDetail(detail, response.status);
     if (response.status === 405 && /<html/i.test(message)) {
       throw new Error(WRONG_API_HOST_MESSAGE);
     }
-    if ([502, 503, 504].includes(response.status) && /render|service unavailable|bad gateway|gateway timeout|timeout|upstream/i.test(message)) {
-      throw new Error(`${RENDER_WAKE_MESSAGE} Details: ${message}`);
+    if ([502, 503, 504].includes(response.status) && /<html/i.test(message)) {
+      throw new Error(`Hosting Gateway Error: The hosting platform returned HTTP ${response.status} before the API produced a response.`);
     }
     throw new Error(message);
   }

@@ -297,9 +297,7 @@ export default function HomePage() {
             <Smartphone className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <div className="min-w-0">
               <div className="text-xs font-bold text-slate-800 dark:text-slate-100">Android client spoof</div>
-              <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                Uses YouTube&apos;s Android client without cookies or web PO tokens.
-              </div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400">Uses YouTube&apos;s Android client instead of the web PO-token route.</div>
             </div>
           </div>
           <button
@@ -309,14 +307,14 @@ export default function HomePage() {
             aria-label="Force Android YouTube client"
             disabled={status === "analyzing"}
             onClick={() => setForceAndroidClient((current) => !current)}
-            className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               forceAndroidClient
                 ? "border-emerald-500 bg-emerald-500"
                 : "border-slate-300 bg-slate-200 dark:border-white/20 dark:bg-white/10"
             }`}
           >
             <span
-              className={`absolute top-0.5 h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform ${
+              className={`absolute left-[3px] top-[2px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform ${
                 forceAndroidClient ? "translate-x-5" : "translate-x-0.5"
               }`}
             />
@@ -327,8 +325,12 @@ export default function HomePage() {
           <div className="mx-auto w-full max-w-2xl rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm text-amber-700 shadow-lg backdrop-blur-md dark:text-amber-100">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
-                <div className="text-xs font-bold uppercase tracking-[0.18em]">{cookiesToken ? "Cookies Loaded" : cookiesMessage ? "Loading Cookies" : "Cookies Required"}</div>
-                <p className="text-xs opacity-80">{cookiesMessage ?? "YouTube blocked this URL. Upload your exported Netscape cookies.txt to retry privately."}</p>
+                <div className="text-xs font-bold uppercase tracking-[0.18em]">
+                  {cookiesToken ? "Cookies Loaded" : cookiesMessage ? "Loading Cookies" : cookiePanelTitle(error)}
+                </div>
+                <p className="text-xs opacity-80">
+                  {cookiesMessage ?? cookiePanelMessage(error)}
+                </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <label className="cursor-pointer rounded-lg border border-amber-500/30 bg-amber-500/15 px-4 py-2 text-xs font-bold transition-all hover:bg-amber-500/25">
@@ -458,11 +460,36 @@ function needsCookies(message: string | null) {
     normalized.includes("cookies for the authentication") ||
     normalized.includes("youtube rejected the uploaded cookies") ||
     normalized.includes("youtube is blocking this request") ||
+    normalized.includes("youtube ip blockage") ||
+    normalized.includes("youtube rate limit") ||
     normalized.includes("age-restricted") ||
     normalized.includes("only available on youtube") ||
     normalized.includes("requires youtube authentication") ||
     normalized.includes("login")
   );
+}
+
+function cookiePanelTitle(message: string | null) {
+  const normalized = message?.toLowerCase() ?? "";
+  if (normalized.includes("age-restricted")) return "Eligible Account Required";
+  if (normalized.includes("private video")) return "Authorized Account Required";
+  if (normalized.includes("members-only")) return "Membership Required";
+  if (normalized.includes("ip blockage") || normalized.includes("rate limit")) return "Alternative Authentication";
+  return "YouTube Authentication";
+}
+
+function cookiePanelMessage(message: string | null) {
+  const normalized = message?.toLowerCase() ?? "";
+  if (normalized.includes("ip blockage") || normalized.includes("rate limit")) {
+    return "The reported failure is tied to the backend IP. Cookies may not resolve an IP-level block, but you can still test fresh account authentication.";
+  }
+  if (normalized.includes("age-restricted")) {
+    return "Upload a fresh Netscape cookies.txt from a YouTube account that is eligible to watch this age-restricted video.";
+  }
+  if (normalized.includes("private video") || normalized.includes("members-only")) {
+    return "Upload cookies from the YouTube account that has permission to view this content.";
+  }
+  return "Upload a fresh Netscape cookies.txt from the correct signed-in YouTube browser profile.";
 }
 
 function resolutionRank(resolution?: string | null) {

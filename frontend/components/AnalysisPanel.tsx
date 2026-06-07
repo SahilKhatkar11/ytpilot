@@ -43,7 +43,7 @@ export default function AnalysisPanel({ metadata, onStartProcessing }: AnalysisP
   const [quality, setQuality] = useState("1080p");
   const [format, setFormat] = useState("MP4");
   const [isBestQuality, setIsBestQuality] = useState(true);
-  const [includeSubtitles, setIncludeSubtitles] = useState(true);
+  const [includeSubtitles, setIncludeSubtitles] = useState(metadata.subtitles.length > 0);
   const [isTrimEnabled, setIsTrimEnabled] = useState(false);
   const [startTime, setStartTime] = useState("00:00:00");
   const [endTime, setEndTime] = useState(secondsToClock(metadata.duration_seconds));
@@ -270,8 +270,16 @@ export default function AnalysisPanel({ metadata, onStartProcessing }: AnalysisP
       <div className="mt-auto flex flex-col sm:flex-row items-center justify-between pt-6 border-t border-slate-200 dark:border-white/5 gap-4">
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-colors group">
-            <input type="checkbox" checked={includeSubtitles} onChange={(event) => setIncludeSubtitles(event.target.checked)} className="w-3.5 h-3.5 rounded border-slate-300 dark:border-white/20 bg-transparent text-blue-600 focus:ring-blue-500 transition-colors cursor-pointer" />
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-blue-50">Include Subtitles</span>
+            <input
+              type="checkbox"
+              checked={includeSubtitles}
+              disabled={!metadata.subtitles.length}
+              onChange={(event) => setIncludeSubtitles(event.target.checked)}
+              className="w-3.5 h-3.5 rounded border-slate-300 dark:border-white/20 bg-transparent text-blue-600 focus:ring-blue-500 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+            />
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-blue-50">
+              {metadata.subtitles.length ? `Include Subtitles (${metadata.subtitles.length})` : "No Subtitles Found"}
+            </span>
           </label>
           <label className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-colors group">
             <input type="checkbox" checked={isBestQuality} onChange={(event) => setIsBestQuality(event.target.checked)} className="w-3.5 h-3.5 rounded border-slate-300 dark:border-white/20 bg-transparent text-blue-600 focus:ring-blue-500 transition-colors cursor-pointer" />

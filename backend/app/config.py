@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     ytdlp_cookies_file: Path | None = None
     ytdlp_cookies_from_browser: str | None = None
     ytdlp_force_ipv4: bool = True
+    ytdlp_proxy_url: str | None = None
     ffmpeg_binary: str = _resolve_binary("ffmpeg", BACKEND_ROOT / "tools" / "ffmpeg" / "bin" / "ffmpeg.exe")
     ffprobe_binary: str = _resolve_binary("ffprobe", BACKEND_ROOT / "tools" / "ffmpeg" / "bin" / "ffprobe.exe")
     pot_provider_enabled: bool = True
@@ -46,6 +48,16 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip().rstrip("/") for origin in self.cors_origin.split(",") if origin.strip()]
+
+    @field_validator("ytdlp_proxy_url")
+    @classmethod
+    def validate_proxy_url(cls, value: str | None) -> str | None:
+        if not value:
+            return None
+        normalized = value.strip()
+        if not normalized.startswith(("http://", "https://", "socks4://", "socks5://", "socks5h://")):
+            raise ValueError("YTDLP_PROXY_URL must use http, https, socks4, socks5, or socks5h")
+        return normalized
 
 
 settings = Settings()

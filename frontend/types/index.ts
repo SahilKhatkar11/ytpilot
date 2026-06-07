@@ -4,6 +4,7 @@ export interface SubtitleOption {
   language: string;
   name: string;
   ext: string;
+  automatic: boolean;
 }
 
 export interface FormatOption {

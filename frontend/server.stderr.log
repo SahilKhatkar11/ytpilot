@@ -1,0 +1,12 @@
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ ReferenceError: needsCookies is not defined
+    at HomePage (app\page.tsx:295:9)
+  293 |         />
+  294 |
+> 295 |         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white/60 px-4 py-3 backdrop-blur-md dark:border-white/10 dark:bg-slate-900/55">
+      |         ^
+  296 |           <div className="flex min-w-0 items-center gap-3">
+  297 |             <Smartphone className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+  298 |             <div className="min-w-0"> {
+  digest: '691617378'
+}

@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from .config import settings
 from .cookie_store import CookieStore
+from .error_reporting import classify_error
 from .job_manager import JobManager
 from .models import AnalyzeRequest, QueueItemRequest, SearchRequest
 from .pot_provider import PotProvider
@@ -68,9 +69,9 @@ async def analyze(payload: AnalyzeRequest):
         )
         return item
     except RuntimeError as exc:
-        detail = str(exc) or repr(exc) or "Analysis failed without an error message. Check the backend yt-dlp configuration."
-        print(f"Analyze failed for url={payload.url!r}: {detail}", flush=True)
-        raise HTTPException(status_code=502, detail=detail) from exc
+        report = classify_error(exc)
+        print(f"Analyze failed for url={payload.url!r}: {exc}", flush=True)
+        raise HTTPException(status_code=report.status_code, detail=report.as_detail()) from exc
 
 
 @app.post(f"{settings.api_prefix}/cookies")
@@ -89,7 +90,8 @@ async def search(payload: SearchRequest):
     try:
         return {"results": await ytdlp.search(payload.query, payload.limit)}
     except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        report = classify_error(exc)
+        raise HTTPException(status_code=report.status_code, detail=report.as_detail()) from exc
 
 
 @app.get(f"{settings.api_prefix}/jobs")

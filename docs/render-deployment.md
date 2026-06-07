@@ -2,18 +2,21 @@
 
 YTPilot uses a Next.js frontend and a FastAPI backend. The backend needs `yt-dlp` and `ffmpeg` available in the host environment.
 
+## Backend Proxy
+
+Set `YTDLP_PROXY_URL` in the backend service when using an
+administrator-controlled HTTP or SOCKS proxy. Render marks this variable as a
+secret prompt in `render.yaml`.
+
+The value is applied to analysis and downloads. Credentials are redacted from
+the diagnostic endpoint. The app does not implement public proxy-list rotation.
+
 ## Cookies
 
-Cookies are optional and user-controlled. The app first tries normal public metadata/download access. If YouTube blocks a URL with a sign-in or bot-confirmation error, the user may upload an exported Netscape `cookies.txt` file in the UI.
-
-Uploaded cookies are stored only in `backend/storage/cookies_uploads` or the configured `STORAGE_ROOT` equivalent, expire with the normal cleanup window, and are ignored by Git.
-
-Do not commit:
-
-- `backend/.env`
-- `backend/storage/cookies.txt`
-- `backend/storage/cookies_uploads/`
-- generated files under `backend/storage/tmp/` or `backend/storage/output/`
+Users may temporarily upload a Netscape `cookies.txt` file when YouTube
+requires authentication. Files are stored under the configured
+`STORAGE_ROOT/cookies_uploads`, expire with `CLEANUP_AFTER_MINUTES`, and can be
+cleared from the UI. Android spoof mode bypasses cookies.
 
 ## Automatic PO Tokens
 
@@ -39,8 +42,9 @@ The provider improves request attestation but does not replace request
 throttling and cannot clear a `429` block already attached to Render's IP.
 
 Users can enable the Android client toggle before analysis. Android mode uses a
-separate YouTube client path and bypasses cookies and the web PO-token provider.
-It may help with client-specific `403` responses but can return fewer formats.
+separate `android_vr` YouTube client path instead of the web PO-token provider.
+It may help with client-specific `403` responses while still exposing adaptive
+video qualities.
 
 ## Render Setup
 

@@ -13,6 +13,7 @@ from fastapi import HTTPException
 
 from .config import settings
 from .cookie_store import CookieStore
+from .error_reporting import classify_error
 from .ffmpeg_service import FfmpegService
 from .models import JobEvent, JobProgress, JobRecord, JobStatus, MediaKind, QueueItemRequest
 from .yt_dlp_service import YtDlpService
@@ -99,7 +100,7 @@ class JobManager:
                 format_selector = record.item.options.format_id
                 subtitle_languages = []
                 if record.item.options.mode == MediaKind.video and record.item.options.embed_subtitles:
-                    subtitle_languages = record.item.options.subtitle_languages or ["en.*", "en"]
+                    subtitle_languages = record.item.options.subtitle_languages
 
                 command = self.ytdlp.build_download_command(
                     source_url=record.item.source_url,
@@ -147,11 +148,23 @@ class JobManager:
                 record.updated_at = datetime.now(timezone.utc)
                 await self._emit(job_id, JobEvent(event="completed", data=record.model_dump(mode="json")))
             except Exception as exc:
+                report = classify_error(exc)
                 record.status = JobStatus.failed
-                record.error = str(exc)
+                record.error = report.display_message()
                 record.progress.stage = "failed"
+                record.progress.message = report.display_message()
                 record.updated_at = datetime.now(timezone.utc)
-                await self._emit(job_id, JobEvent(event="failed", data={"message": str(exc)}))
+                await self._emit(
+                    job_id,
+                    JobEvent(
+                        event="failed",
+                        data={
+                            "code": report.code,
+                            "title": report.title,
+                            "message": report.display_message(),
+                        },
+                    ),
+                )
             finally:
                 if downloaded_path and downloaded_path.exists():
                     downloaded_path.unlink(missing_ok=True)
@@ -180,8 +193,8 @@ class JobManager:
 
         return_code = await asyncio.to_thread(proc.wait)
         if return_code != 0:
-            error_line = next((line for line in reversed(lines) if "ERROR:" in line or "error" in line.lower()), "")
-            raise RuntimeError(error_line or "yt-dlp download failed")
+            error_lines = [line for line in lines if "ERROR:" in line or "error" in line.lower()]
+            raise RuntimeError("\n".join(error_lines[-5:]) or "\n".join(lines[-10:]) or "yt-dlp download failed")
         if lines and lines[-1].startswith("__ERROR__:"):
             raise RuntimeError(lines[-1].replace("__ERROR__:", "", 1).strip() or "yt-dlp download failed")
         if not lines:
@@ -196,7 +209,12 @@ class JobManager:
         if destination and destination.exists():
             return destination
 
-        candidates = [candidate for candidate in settings.temp_root.glob(f"{job_id}.*") if candidate.is_file()]
+        subtitle_suffixes = {".vtt", ".srt", ".ass", ".ssa"}
+        candidates = [
+            candidate
+            for candidate in settings.temp_root.glob(f"{job_id}.*")
+            if candidate.is_file() and candidate.suffix.lower() not in subtitle_suffixes
+        ]
         if not candidates:
             return None
 

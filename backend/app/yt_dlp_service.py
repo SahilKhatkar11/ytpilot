@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, urlsplit, urlunsplit
 
 from .config import settings
 from .cookie_store import CookieStore
@@ -130,6 +130,7 @@ class YtDlpService:
             "yt_dlp_binary_error": binary_error,
             "analysis_timeout_seconds": self.analysis_timeout_seconds,
             "force_ipv4": settings.ytdlp_force_ipv4,
+            "proxy": self._redacted_proxy_url(),
             "pot_plugin_version": pot_plugin_version,
             "pot_client_enabled": settings.pot_provider_enabled,
             "pot_provider_url": settings.pot_provider_url,
@@ -221,7 +222,12 @@ class YtDlpService:
     async def _run_json(self, command: list[str], timeout_seconds: int | None = None) -> dict[str, Any]:
         fallback_command = self._fallback_binary_command(command)
         started = time.perf_counter()
-        logger.info("yt-dlp json start revision=%s timeout=%s command=%s", ANALYZE_REVISION, timeout_seconds or self.analysis_timeout_seconds, command)
+        logger.info(
+            "yt-dlp json start revision=%s timeout=%s command=%s",
+            ANALYZE_REVISION,
+            timeout_seconds or self.analysis_timeout_seconds,
+            self._redact_command(command),
+        )
         try:
             completed = await self._run_process(command, timeout_seconds=timeout_seconds)
             if completed.returncode != 0 and fallback_command:
@@ -249,10 +255,6 @@ class YtDlpService:
         if completed.returncode != 0:
             safe_command = self._redact_command(command)
             error_text = completed.stderr or completed.stdout or f"yt-dlp failed with exit code {completed.returncode}"
-            if self._is_youtube_auth_error(error_text) and self._command_has_cookies(command):
-                raise RuntimeError(
-                    "YouTube rejected the uploaded cookies. Export a fresh Netscape cookies.txt from the same browser profile where YouTube is logged in, then upload that new file and retry."
-                )
             raise RuntimeError(f"{error_text}\nCommand: {' '.join(safe_command)}")
         return json.loads(completed.stdout)
 
@@ -277,42 +279,23 @@ class YtDlpService:
         )
 
     def _analyze_failure_message(self, errors: list[str]) -> str:
-        joined = "\n".join(errors).lower()
-        if "youtube rejected the uploaded cookies" in joined:
-            return (
-                "YouTube rejected the uploaded cookies. On cloud hosts like Render, cookies that work locally can still be rejected "
-                "because YouTube sees a different server IP. Export a fresh Netscape cookies.txt from the same logged-in browser profile, "
-                "or retry later if YouTube is temporarily challenging the Render IP."
-            )
-        if "age-restricted" in joined or "only available on youtube" in joined:
-            return (
-                "This video requires YouTube authentication because it is age-restricted or only available on YouTube. "
-                "Upload a fresh Netscape cookies.txt from a browser profile that is logged into an eligible YouTube account, then retry."
-            )
-        if self._is_youtube_auth_error(joined):
-            return (
-                "YouTube is blocking this request from the hosting IP. Public videos can still trigger bot checks on Render. "
-                "Retry once after a short wait, or upload a fresh Netscape cookies.txt if the video needs authentication."
-            )
-        if "timed out" in joined:
-            return "yt-dlp could not fetch metadata before timing out. The backend may be cold-starting or YouTube may be slow; retry once."
-        return errors[-1] if errors else "yt-dlp could not fetch metadata or streams."
-
-    def _command_has_cookies(self, command: list[str]) -> bool:
-        return "--cookies" in command or "--cookies-from-browser" in command
+        return "\n".join(errors) if errors else "yt-dlp could not fetch metadata or streams."
 
     def _redact_command(self, command: list[str]) -> list[str]:
         safe: list[str] = []
         skip_next = False
         for index, value in enumerate(command):
             if skip_next:
-                safe.append("[cookies-file]")
+                safe.append("[sensitive-value]")
                 skip_next = False
                 continue
             safe.append(value)
-            if value in {"--cookies", "--cookies-from-browser"} and index < len(command) - 1:
+            if value in {"--proxy", "--cookies", "--cookies-from-browser"} and index < len(command) - 1:
                 skip_next = True
         return safe
+
+    def _command_has_cookies(self, command: list[str]) -> bool:
+        return "--cookies" in command or "--cookies-from-browser" in command
 
     async def _run_process(self, command: list[str], timeout_seconds: int | None = None) -> subprocess.CompletedProcess[str]:
         timeout = timeout_seconds or self.analysis_timeout_seconds
@@ -421,7 +404,7 @@ class YtDlpService:
         thumbnails = payload.get("thumbnails") or []
         square_thumb = self._pick_square_thumbnail(thumbnails)
         formats = self._map_formats(payload.get("formats") or [])
-        subtitles: list[SubtitleOption] = []
+        subtitles = self._map_available_subtitles(payload)
         child_entries = []
         for entry in entries[:50]:
             child_entries.append(self._map_media_item(entry, source_url=entry.get("webpage_url", source_url)))
@@ -460,24 +443,67 @@ class YtDlpService:
             return thumbnails[-1].get("url")
         return None
 
-    def _map_subtitles(self, payload: dict[str, Any]) -> list[SubtitleOption]:
+    def _map_subtitles(self, payload: dict[str, Any], automatic: bool = False) -> list[SubtitleOption]:
         results: list[SubtitleOption] = []
         seen: set[str] = set()
         for language, tracks in payload.items():
             if not tracks:
                 continue
+            if language == "live_chat":
+                continue
             if language in seen:
                 continue
             seen.add(language)
-            track = tracks[0]
+            track = next(
+                (item for item in tracks if (item.get("ext") or "").lower() in {"vtt", "srt", "ass", "ssa"}),
+                tracks[0],
+            )
             results.append(
                 SubtitleOption(
                     language=language,
-                    name=track.get("name") or language,
+                    name=self._subtitle_name(track.get("name"), language, automatic),
                     ext=track.get("ext") or "vtt",
+                    automatic=automatic,
                 )
             )
         return results
+
+    def _map_available_subtitles(self, payload: dict[str, Any]) -> list[SubtitleOption]:
+        manual = self._map_subtitles(payload.get("subtitles") or {})
+        automatic_payload = payload.get("automatic_captions") or {}
+        if not automatic_payload:
+            return manual
+
+        preferred_auto_languages = [
+            language
+            for language in automatic_payload
+            if language.endswith("-orig")
+        ]
+        if not preferred_auto_languages and not manual:
+            source_language = payload.get("language")
+            for language in (source_language, "en"):
+                if language and language in automatic_payload:
+                    preferred_auto_languages.append(language)
+                    break
+
+        automatic = self._map_subtitles(
+            {
+                language: automatic_payload[language]
+                for language in preferred_auto_languages
+            },
+            automatic=True,
+        )
+        manual_languages = {item.language for item in manual}
+        return [*manual, *(item for item in automatic if item.language not in manual_languages)]
+
+    def _subtitle_name(self, value: Any, language: str, automatic: bool) -> str:
+        if isinstance(value, dict):
+            runs = value.get("runs") or []
+            name = value.get("simpleText") or (runs[0].get("text") if runs else None)
+        else:
+            name = value
+        label = str(name or language)
+        return f"{label} (auto)" if automatic else label
 
     def _map_formats(self, formats: list[dict[str, Any]]) -> list[FormatOption]:
         mapped: list[FormatOption] = []
@@ -565,6 +591,7 @@ class YtDlpService:
             command.extend(
                 [
                     "--write-subs",
+                    "--write-auto-subs",
                     "--sub-langs",
                     ",".join(subtitle_languages),
                     "--sub-format",
@@ -583,10 +610,13 @@ class YtDlpService:
         return command
 
     def _network_args(self) -> list[str]:
-        return ["--force-ipv4"] if settings.ytdlp_force_ipv4 else []
+        args = ["--force-ipv4"] if settings.ytdlp_force_ipv4 else []
+        if settings.ytdlp_proxy_url:
+            args.extend(["--proxy", settings.ytdlp_proxy_url])
+        return args
 
     def _android_client_args(self) -> list[str]:
-        return ["--extractor-args", "youtube:player_client=android"]
+        return ["--extractor-args", "youtube:player_client=android_vr"]
 
     def _pot_client_args(self) -> list[str]:
         if not settings.pot_provider_enabled:
@@ -600,6 +630,17 @@ class YtDlpService:
                 ]
             )
         return args
+
+    def _redacted_proxy_url(self) -> str | None:
+        if not settings.ytdlp_proxy_url:
+            return None
+        parsed = urlsplit(settings.ytdlp_proxy_url)
+        host = parsed.hostname or ""
+        if parsed.port:
+            host = f"{host}:{parsed.port}"
+        if parsed.username or parsed.password:
+            host = f"[credentials]@{host}"
+        return urlunsplit((parsed.scheme, host, parsed.path, parsed.query, parsed.fragment))
 
     def _auth_args(self, cookies_token: str | None = None) -> list[str]:
         uploaded_cookie_path = self.cookie_store.resolve(cookies_token) if self.cookie_store else None

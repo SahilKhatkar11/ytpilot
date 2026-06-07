@@ -7,26 +7,84 @@
    - Network:      http://10.50.253.231:3000
 
  ✓ Starting...
- ✓ Ready in 4s
+ ✓ Ready in 5.3s
  ○ Compiling / ...
- ✓ Compiled / in 8.4s (1560 modules)
- GET / 200 in 9119ms
- GET / 200 in 154ms
- GET / 200 in 124ms
+ ✓ Compiled / in 5.7s (1564 modules)
+ GET / 200 in 6720ms
+ GET / 200 in 141ms
+ GET / 200 in 128ms
  ○ Compiling /icon.svg ...
- ✓ Compiled /icon.svg in 624ms (826 modules)
- GET /icon.svg 200 in 795ms
- ✓ Compiled in 2.3s (1560 modules)
- GET / 200 in 405ms
- ✓ Compiled /icon.svg in 381ms (826 modules)
- GET /icon.svg 200 in 635ms
- GET /icon.svg 200 in 13ms
- ✓ Compiled in 1707ms (1564 modules)
- GET / 200 in 468ms
- ✓ Compiled /icon.svg in 313ms (828 modules)
- GET /icon.svg 200 in 506ms
- GET / 200 in 398ms
- GET / 200 in 107ms
- GET /icon.svg 200 in 22ms
- GET / 200 in 110ms
+ ✓ Compiled /icon.svg in 584ms (828 modules)
+ GET /icon.svg 200 in 774ms
+ ✓ Compiled in 685ms (752 modules)
+ GET / 200 in 201ms
+ GET /icon.svg 200 in 15ms
+ GET /icon.svg 200 in 12ms
+ ✓ Compiled in 1174ms (1580 modules)
+ GET / 200 in 222ms
+ GET /icon.svg 200 in 30ms
+ GET / 200 in 418ms
+ GET / 200 in 146ms
+ GET /icon.svg 200 in 20ms
+ ✓ Compiled in 1271ms (1564 modules)
+ GET / 200 in 268ms
+ ✓ Compiled /icon.svg in 266ms (828 modules)
+ GET /icon.svg 200 in 455ms
+ GET /icon.svg 200 in 7ms
+ GET / 200 in 508ms
+ GET / 200 in 145ms
+ GET /icon.svg 200 in 20ms
+ ✓ Compiled in 1346ms (1564 modules)
+ GET / 200 in 337ms
+ ✓ Compiled /icon.svg in 291ms (828 modules)
+ GET /icon.svg 200 in 470ms
+ GET /icon.svg 200 in 8ms
+ GET / 200 in 512ms
+ GET / 200 in 140ms
+ GET /icon.svg 200 in 11ms
+ ✓ Compiled in 1043ms (1564 modules)
+ GET / 200 in 320ms
+ ✓ Compiled /icon.svg in 295ms (828 modules)
+ GET /icon.svg 200 in 480ms
  GET /icon.svg 200 in 9ms
+ GET / 200 in 379ms
+ GET / 200 in 135ms
+ GET /icon.svg 200 in 10ms
+ ✓ Compiled in 998ms (1564 modules)
+ GET / 200 in 478ms
+ ✓ Compiled in 636ms (752 modules)
+ GET / 200 in 41ms
+ ✓ Compiled /icon.svg in 212ms (828 modules)
+ GET /icon.svg 200 in 373ms
+ GET /icon.svg 200 in 11ms
+ GET / 200 in 346ms
+ GET / 200 in 145ms
+ GET /icon.svg 200 in 10ms
+ ✓ Compiled in 1597ms (1564 modules)
+ GET / 200 in 265ms
+ ✓ Compiled /icon.svg in 208ms (828 modules)
+ GET /icon.svg 200 in 371ms
+ GET /icon.svg 200 in 6ms
+ ✓ Compiled in 1170ms (1580 modules)
+ GET / 200 in 156ms
+ GET /icon.svg 200 in 11ms
+ ✓ Compiled in 914ms (1580 modules)
+ GET / 500 in 990ms
+ GET /icon.svg 200 in 29ms
+ ✓ Compiled in 634ms (1580 modules)
+ GET / 200 in 459ms
+ GET /icon.svg 200 in 14ms
+ GET / 200 in 105ms
+ GET / 200 in 129ms
+ GET /icon.svg 200 in 8ms
+ ✓ Compiled in 795ms (1564 modules)
+ GET / 200 in 222ms
+ ✓ Compiled /icon.svg in 209ms (828 modules)
+ GET /icon.svg 200 in 349ms
+ GET /icon.svg 200 in 6ms
+ ✓ Compiled in 689ms (1580 modules)
+ GET / 200 in 148ms
+ GET /icon.svg 200 in 19ms
+ ✓ Compiled in 823ms (1564 modules)
+ GET / 200 in 235ms
+ GET / 200 in 374ms

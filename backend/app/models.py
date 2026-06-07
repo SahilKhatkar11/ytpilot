@@ -23,6 +23,7 @@ class SubtitleOption(BaseModel):
     language: str
     name: str
     ext: str
+    automatic: bool = False
 
 
 class FormatOption(BaseModel):

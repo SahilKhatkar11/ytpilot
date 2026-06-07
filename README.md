@@ -11,7 +11,8 @@
 - 🧾 Optional embedded subtitle support
 - 📚 Playlist-aware analysis and queueing
 - 📡 Real-time processing updates with Server-Sent Events
-- 🔐 Optional, temporary `cookies.txt` upload flow for YouTube authentication challenges
+- Administrator-controlled proxy support for yt-dlp traffic
+- Optional, temporary `cookies.txt` upload for YouTube authentication challenges
 - 🌗 Light/dark responsive UI inspired by Google AI Studio
 
 ## 🧱 Tech Stack
@@ -77,13 +78,27 @@ Backend:
 http://127.0.0.1:8000
 ```
 
-## 🔐 Cookies Flow
+## Backend Proxy
 
-YTPilot first tries public analysis without cookies. If YouTube blocks a request with a sign-in or bot-check challenge, users can voluntarily upload an exported Netscape `cookies.txt` file. Uploaded cookies are temporary, token-based, and can be cleared from the UI.
+The backend can route yt-dlp traffic through one administrator-controlled HTTP
+or SOCKS proxy:
 
-If a cookie upload is missing common YouTube/Google authentication cookies, the app warns the user so they can export a fresh file from the correct logged-in browser profile.
+```text
+YTDLP_PROXY_URL=socks5h://username:password@proxy.example.com:1080
+```
 
-Do **not** commit personal cookies or `.env` files. The included `.gitignore` excludes local cookies, temporary uploads, generated media, virtual environments, and build output.
+Keep this value in backend environment variables. It is never exposed in the
+frontend, and diagnostics redact embedded credentials. Public proxy-list
+scraping and automatic proxy rotation are intentionally unsupported.
+
+## Cookies Flow
+
+YTPilot first tries public analysis without cookies. If YouTube requests
+authentication, users can upload a Netscape `cookies.txt` export. Uploads are
+temporary, token-based, validated, limited to 2 MB, and removable from the UI.
+
+Android spoof mode intentionally does not use uploaded cookies. Do not commit
+personal cookies or `.env` files.
 
 ## YouTube PO Tokens
 
@@ -107,9 +122,10 @@ guarantee access when the hosting provider IP is already rate-limited with
 `429 Too Many Requests`.
 
 The main page also includes an **Android client spoof** toggle. When enabled,
-analysis and downloads use `youtube:player_client=android` and intentionally
-skip cookies and web PO-token arguments. This alternate client can expose fewer
-formats and cannot remove an IP-level `429`.
+analysis and downloads use `youtube:player_client=android_vr` instead of the
+web PO-token route. This Android-family client exposes adaptive quality streams
+while retaining the alternate mobile extraction path. It cannot remove an
+IP-level `429`.
 
 ## ☁️ Render Deployment
 
